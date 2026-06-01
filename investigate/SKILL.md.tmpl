@@ -37,28 +37,6 @@ hooks:
         - type: command
           command: 'bash -c ''S="${CLAUDE_SKILL_DIR}/../freeze/bin/check-freeze.sh"; [ -x "$S" ] || S="${CLAUDE_SKILL_DIR}/../gstack-freeze/bin/check-freeze.sh"; [ -x "$S" ] && bash "$S" || exit 0'''
           statusMessage: "Checking debug scope boundary..."
-gbrain:
-  schema: 1
-  context_queries:
-    - id: prior-investigations
-      kind: list
-      filter:
-        type: timeline
-        tags_contains: "repo:{repo_slug}"
-        content_contains: "investigate"
-      sort: updated_at_desc
-      limit: 5
-      render_as: "## Prior investigations in this repo"
-    - id: project-learnings
-      kind: filesystem
-      glob: "~/.gstack/projects/{repo_slug}/learnings.jsonl"
-      tail: 10
-      render_as: "## Recent learnings (patterns + pitfalls)"
-    - id: recent-eureka
-      kind: filesystem
-      glob: "~/.gstack/analytics/eureka.jsonl"
-      tail: 5
-      render_as: "## Recent eureka moments (cross-project)"
 ---
 
 {{PREAMBLE}}
