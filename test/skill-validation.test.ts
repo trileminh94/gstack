@@ -7,14 +7,12 @@ import * as path from 'path';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 
-// Carved-skill aware (v2 plan T9): ship is a skeleton SKILL.md + sections/*.md.
+// Carved-skill aware (v2 plan T9): carved skills are a skeleton SKILL.md + sections/*.md.
 // Read the union so validations of content that moved into a section still hold.
-// `_SHIP_MD` is a distinct path expression so a mechanical read-replace can't
-// recurse into this helper.
-const _SHIP_MD = path.join(ROOT, 'ship', 'SKILL.md');
-function readShipUnion(): string {
-  let t = fs.readFileSync(_SHIP_MD, 'utf-8');
-  const secDir = path.join(ROOT, 'ship', 'sections');
+function readSkillUnion(skillDir: string): string {
+  const skillPath = path.join(ROOT, skillDir, 'SKILL.md');
+  let t = fs.readFileSync(skillPath, 'utf-8');
+  const secDir = path.join(ROOT, skillDir, 'sections');
   if (fs.existsSync(secDir)) {
     for (const f of fs.readdirSync(secDir).sort()) {
       if (f.endsWith('.md')) t += '\n' + fs.readFileSync(path.join(secDir, f), 'utf-8');
@@ -22,6 +20,7 @@ function readShipUnion(): string {
   }
   return t;
 }
+function readShipUnion(): string { return readSkillUnion('ship'); }
 
 describe('SKILL.md command validation', () => {
   test('all $B commands in SKILL.md are valid browse commands', () => {
@@ -548,8 +547,8 @@ describe('TODOS-format.md reference consistency', () => {
 
   test('skills that write TODOs reference TODOS-format.md', () => {
     const shipContent = readShipUnion();
-    const ceoPlanContent = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
-    const engPlanContent = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+    const ceoPlanContent = readSkillUnion('plan-ceo-review');
+    const engPlanContent = readSkillUnion('plan-eng-review');
 
     expect(shipContent).toContain('TODOS-format.md');
     expect(ceoPlanContent).toContain('TODOS-format.md');
@@ -621,7 +620,7 @@ describe('v0.4.1 preamble features', () => {
 // --- Structural tests for new skills ---
 
 describe('office-hours skill structure', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
+  const content = readSkillUnion('office-hours');
 
   // Original structural assertions
   for (const section of ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5', 'Phase 6',

@@ -61,11 +61,7 @@ command -v knip >/dev/null 2>&1 && echo "DEADCODE: knip"
 # Shell linting
 command -v shellcheck >/dev/null 2>&1 && ls *.sh scripts/*.sh bin/*.sh 2>/dev/null | head -1 | xargs -I{} echo "SHELL: shellcheck"
 
-# GBrain presence (D6) — only report as a dimension if gbrain is actually
-# set up; otherwise skip so machines without gbrain aren't penalized.
-if command -v gbrain >/dev/null 2>&1 && [ -f "$HOME/.gbrain/config.json" ]; then
-  echo "GBRAIN: gbrain doctor --json (wrapped in timeout 5s)"
-fi
+# No gbrain detection (removed)
 ```
 
 Use Glob to search for shell scripts:
@@ -135,8 +131,6 @@ Score each category on a 0-10 scale using this rubric:
 | Tests | 28% | All pass (exit 0) | >95% pass | >80% pass | <=80% pass |
 | Dead code | 13% | Clean (exit 0) | <5 unused exports | <20 unused | >=20 unused |
 | Shell lint | 9% | Clean (exit 0) | <5 issues | >=5 issues | N/A (skip) |
-| GBrain (D6) | 10% | doctor=ok, queue<10, pushed <24h | doctor=warnings OR queue<100 OR pushed <72h | doctor broken OR queue>=100 OR pushed >=72h | N/A (gbrain not installed) |
-
 **Parsing tool output for counts:**
 - **tsc:** Count lines matching `error TS` in output.
 - **biome/eslint/ruff:** Count lines matching error/warning patterns. Parse the summary line if available.
@@ -226,19 +220,17 @@ DETAILS: Lint (3 warnings)
 Append one JSONL line to `~/.gstack/projects/$SLUG/health-history.jsonl`:
 
 ```json
-{"ts":"2026-03-31T14:30:00Z","branch":"main","score":9.1,"typecheck":10,"lint":8,"test":10,"deadcode":7,"shell":10,"gbrain":10,"duration_s":23}
+{"ts":"2026-03-31T14:30:00Z","branch":"main","score":9.1,"typecheck":10,"lint":8,"test":10,"deadcode":7,"shell":10,"duration_s":23}
 ```
 
 Fields:
 - `ts` -- ISO 8601 timestamp
 - `branch` -- current git branch
 - `score` -- composite score (one decimal)
-- `typecheck`, `lint`, `test`, `deadcode`, `shell`, `gbrain` -- individual category scores (integer 0-10)
+- `typecheck`, `lint`, `test`, `deadcode`, `shell` -- individual category scores (integer 0-10)
 - `duration_s` -- total time for all tools in seconds
 
-If a category was skipped, set its value to `null`. Pre-D6 history entries
-won't have a `gbrain` field — treat them as `null` for trend comparison
-and start new tracking from the first post-D6 run.
+If a category was skipped, set its value to `null`.
 
 ---
 

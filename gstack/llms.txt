@@ -24,7 +24,7 @@ Conventions:
 - [/design-consultation](design-consultation/SKILL.md): Design consultation: understands your product, researches the landscape, proposes a complete design system (aesthetic, typography, color, layout, spacing, motion), and generates font+color preview pages.
 - [/design-html](design-html/SKILL.md): Design finalization: generates production-quality Pretext-native HTML/CSS.
 - [/design-review](design-review/SKILL.md): Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems, AI slop patterns, and slow interactions — then fixes them.
-- [/design-shotgun](design-shotgun/SKILL.md): Design shotgun: generate multiple AI design variants, open a comparison board, collect structured feedback, and iterate.
+- [/design-shotgun](design-shotgun/SKILL.md): Design shotgun: generate multiple AI design variants and collect feedback directly in chat.
 - [/devex-review](devex-review/SKILL.md): Live developer experience audit.
 - [/document-generate](document-generate/SKILL.md): Generate missing documentation from scratch for a feature, module, or entire project.
 - [/document-release](document-release/SKILL.md): Post-ship documentation update.

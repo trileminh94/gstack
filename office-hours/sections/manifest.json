@@ -1,0 +1,20 @@
+{
+  "$schema": "https://gstack.dev/schemas/section-manifest.json",
+  "skill": "office-hours",
+  "version": 1,
+  "note": "PASSIVE registry. The skeleton's prose is the ONLY place that decides WHEN to read a section.",
+  "sections": [
+    {
+      "id": "startup-mode",
+      "file": "startup-mode.md",
+      "title": "YC product diagnostic — six forcing questions for startup/intrapreneurship mode",
+      "trigger": "running the YC product diagnostic for startup/intrapreneurship mode (Phase 2A)"
+    },
+    {
+      "id": "handoff",
+      "file": "handoff.md",
+      "title": "Relationship closing — tier-based closing sequence + founder resources",
+      "trigger": "delivering the relationship closing after design doc is approved (Phase 6)"
+    }
+  ]
+}
