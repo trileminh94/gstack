@@ -830,6 +830,29 @@ MUST be saved to \`~/.gstack/projects/$SLUG/designs/\`, NEVER to \`.context/\`,
 data, not project files. They persist across branches, conversations, and workspaces.`;
 }
 
+export function generateDesignSetupLight(_ctx: TemplateContext): string {
+  return `## DESIGN SETUP LIGHT (HTML-only, chat-based feedback)
+
+This skill generates HTML mockups directly — no compiled design binary, no
+image generation API, no screenshots, no HTTP server. Just HTML files and
+chat feedback.
+
+\`\`\`bash
+# Check for browser access (optional)
+_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+B=""
+[ -n "$_ROOT" ] && [ -x "$_ROOT/${ctx.paths.localSkillRoot}/browse/dist/browse" ] && B="$_ROOT/${ctx.paths.localSkillRoot}/browse/dist/browse"
+[ -z "$B" ] && B="$HOME${ctx.paths.browseDir.replace(/^~/, '')}/browse"
+if [ -x "$B" ]; then
+  echo "BROWSER_READY"
+else
+  echo "Will use 'open' for browser preview"
+fi
+\`\`\`
+
+Works with or without a browser. No design binary required.`;
+}
+
 export function generateDesignMockup(ctx: TemplateContext): string {
   return `## Visual Design Exploration
 
@@ -910,119 +933,51 @@ Reference the saved mockup in the design doc or plan.`;
 }
 
 export function generateDesignShotgunLoop(_ctx: TemplateContext): string {
-  return `### Comparison Board + Feedback Loop
+  return `### Chat Feedback Loop
 
-Create the comparison board and serve it over HTTP:
+No comparison board, no HTTP server, no screenshot — just ask the user directly.
 
-\`\`\`bash
-$D compare --images "$_DESIGN_DIR/variant-A.png,$_DESIGN_DIR/variant-B.png,$_DESIGN_DIR/variant-C.png" --output "$_DESIGN_DIR/design-board.html" --serve
-\`\`\`
+Describe the variants briefly, then use AskUserQuestion:
 
-This command generates the board HTML, starts an HTTP server on a random port,
-and opens it in the user's default browser. **Run it in the background** with \`&\`
-because the server needs to stay running while the user interacts with the board.
+> "Here are the {N} variants saved to {_DESIGN_DIR}:
+> - **Variant A** — [one-line description]
+> - **Variant B** — [one-line description]
+> - **Variant C** — [one-line description]
+>
+> Which direction do you prefer? Tell me what you like/dislike about each.
+> If you want changes, say \"Regenerate\" with specific feedback and I'll
+> create a new round."
 
-Parse the board URL from stderr output. Default daemon path:
-\`BOARD_URL: http://127.0.0.1:N/boards/<id>/\` (already includes the per-board
-path; use this for the AskUserQuestion URL AND as the base for the reload
-endpoint). Legacy \`--no-daemon\` path emits \`SERVE_STARTED: port=XXXXX\` and
-serves a single board at \`/\`, with reload at \`/api/reload\` — only relevant
-when an external caller explicitly passes \`--no-daemon\`.
+Options:
+- A) Variant A — [reason from user's feedback]
+- B) Variant B — [reason from user's feedback]
+- C) Variant C — [reason from user's feedback]
+- D) Regenerate — [user provides specific feedback for changes]
+- E) Mixed — combine elements from multiple variants (tell me which)
 
-**PRIMARY WAIT: AskUserQuestion with board URL**
-
-After the board is serving, use AskUserQuestion to wait for the user. Include the
-board URL so they can click it if they lost the browser tab:
-
-"I've opened a comparison board with the design variants:
-<BOARD_URL> — Rate them, leave comments, remix
-elements you like, and click Submit when you're done. Let me know when you've
-submitted your feedback (or paste your preferences here). If you clicked
-Regenerate or Remix on the board, tell me and I'll generate new variants."
-
-Substitute \`<BOARD_URL>\` with the URL parsed from stderr (the daemon path
-emits \`BOARD_URL: http://127.0.0.1:N/boards/<id>/\`).
-
-**Do NOT use AskUserQuestion to ask which variant the user prefers.** The comparison
-board IS the chooser. AskUserQuestion is just the blocking wait mechanism.
-
-**After the user responds to AskUserQuestion:**
-
-Check for feedback files next to the board HTML:
-- \`$_DESIGN_DIR/feedback.json\` — written when user clicks Submit (final choice)
-- \`$_DESIGN_DIR/feedback-pending.json\` — written when user clicks Regenerate/Remix/More Like This
+**If user picks A, B, or C:** Confirm understanding, then save:
 
 \`\`\`bash
-if [ -f "$_DESIGN_DIR/feedback.json" ]; then
-  echo "SUBMIT_RECEIVED"
-  cat "$_DESIGN_DIR/feedback.json"
-elif [ -f "$_DESIGN_DIR/feedback-pending.json" ]; then
-  echo "REGENERATE_RECEIVED"
-  cat "$_DESIGN_DIR/feedback-pending.json"
-  rm "$_DESIGN_DIR/feedback-pending.json"
-else
-  echo "NO_FEEDBACK_FILE"
-fi
+echo '{"approved_variant":"<LETTER>","variant_file":"<PATH>","feedback":"<USER_FEEDBACK>","date":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","screen":"<SCREEN>","branch":"'$(git branch --show-current 2>/dev/null)'"}' > "$_DESIGN_DIR/approved.json"
 \`\`\`
 
-The feedback JSON has this shape:
-\`\`\`json
-{
-  "preferred": "A",
-  "ratings": { "A": 4, "B": 3, "C": 2 },
-  "comments": { "A": "Love the spacing" },
-  "overall": "Go with A, bigger CTA",
-  "regenerated": false
-}
-\`\`\`
+Proceed to Step 5.
 
-**If \`feedback.json\` found:** The user clicked Submit on the board.
-Read \`preferred\`, \`ratings\`, \`comments\`, \`overall\` from the JSON. Proceed with
-the approved variant.
+**If user picks D (Regenerate):** Use their feedback to write new HTML variants.
+Return to Step 3c with updated brief, max 3 regeneration rounds.
 
-**If \`feedback-pending.json\` found:** The user clicked Regenerate/Remix on the board.
-1. Read \`regenerateAction\` from the JSON (\`"different"\`, \`"match"\`, \`"more_like_B"\`,
-   \`"remix"\`, or custom text)
-2. If \`regenerateAction\` is \`"remix"\`, read \`remixSpec\` (e.g. \`{"layout":"A","colors":"B"}\`)
-3. Generate new variants with \`$D iterate\` or \`$D variants\` using updated brief
-4. Create new board: \`$D compare --images "..." --output "$_DESIGN_DIR/design-board.html"\`
-5. Reload the board in the user's browser (same tab) — the URL is per-board
-   under daemon mode, so use \`<BOARD_URL>\` (from the \`BOARD_URL:\` stderr
-   line) as the base:
-   \`curl -s -X POST "\${BOARD_URL}api/reload" -H 'Content-Type: application/json' -d '{"html":"$_DESIGN_DIR/design-board.html"}'\`
-   Under \`--no-daemon\` the reload endpoint is \`/api/reload\` at the legacy
-   port; this path only matters if the caller explicitly opted out of the
-   daemon.
-6. The board auto-refreshes. **AskUserQuestion again** with the same board URL to
-   wait for the next round of feedback. Repeat until \`feedback.json\` appears.
+**If user picks E (Mixed):** Write a new HTML variant combining the requested
+elements and present it in a follow-up AskUserQuestion.
 
-**If \`NO_FEEDBACK_FILE\`:** The user typed their preferences directly in the
-AskUserQuestion response instead of using the board. Use their text response
-as the feedback.
+**Always confirm before saving:**
 
-**POLLING FALLBACK:** Only use polling if \`$D serve\` fails (no port available).
-In that case, show each variant inline using the Read tool (so the user can see them),
-then use AskUserQuestion:
-"The comparison board server failed to start. I've shown the variants above.
-Which do you prefer? Any feedback?"
-
-**After receiving feedback (any path):** Output a clear summary confirming
-what was understood:
-
-"Here's what I understood from your feedback:
+"Here's what I understood:
 PREFERRED: Variant [X]
-RATINGS: [list]
-YOUR NOTES: [comments]
-DIRECTION: [overall]
+FEEDBACK: [summary]
 
 Is this right?"
 
-Use AskUserQuestion to verify before proceeding.
-
-**Save the approved choice:**
-\`\`\`bash
-echo '{"approved_variant":"<V>","feedback":"<FB>","date":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","screen":"<SCREEN>","branch":"'$(git branch --show-current 2>/dev/null)'"}' > "$_DESIGN_DIR/approved.json"
-\`\`\``;
+Use AskUserQuestion to confirm, then save approved.json.`;
 }
 
 export function generateTasteProfile(ctx: TemplateContext): string {

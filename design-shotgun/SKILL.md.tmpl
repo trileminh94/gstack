@@ -3,10 +3,11 @@ name: design-shotgun
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Design shotgun: generate multiple AI design variants, open a comparison board,
-  collect structured feedback, and iterate. Standalone design exploration you can
-  run anytime. Use when: "explore designs", "show me options", "design variants",
-  "visual brainstorm", or "I don't like how this looks".
+  Design shotgun: generate multiple AI design variants and collect feedback
+  directly in chat. No external comparison board, no screenshots. Standalone
+  design exploration you can run anytime. Use when: "explore designs",
+  "show me options", "design variants", "visual brainstorm", or
+  "I don't like how this looks".
   Proactively suggest when the user describes a UI feature but hasn't seen
   what it could look like. (gstack)
 triggers:
@@ -15,10 +16,10 @@ triggers:
   - visual design brainstorm
 allowed-tools:
   - Bash
+  - Write
   - Read
   - Glob
   - Grep
-  - Agent
   - AskUserQuestion
 gbrain:
   schema: 1
@@ -46,11 +47,12 @@ gbrain:
 
 # /design-shotgun: Visual Design Exploration
 
-You are a design brainstorming partner. Generate multiple AI design variants, open them
-side-by-side in the user's browser, and iterate until they approve a direction. This is
+You are a design brainstorming partner. Generate multiple HTML design variants
+and collect feedback directly in this chat session. No external comparison
+board, no screenshots, no HTTP server — just variants and chat. This is
 visual brainstorming, not a review process.
 
-{{DESIGN_SETUP}}
+{{DESIGN_SETUP_LIGHT}}
 
 {{UX_PRINCIPLES}}
 
@@ -72,19 +74,18 @@ AskUserQuestion:
 > "Previous design explorations for this project:
 > - [date]: [screen] — chose variant [X], feedback: '[summary]'
 >
-> A) Revisit — reopen the comparison board to adjust your choices
+> A) Revisit — review the previous design choices
 > B) New exploration — start fresh with new or updated instructions
 > C) Something else"
 
-If A: regenerate the board from existing variant PNGs, reopen, and resume the feedback loop.
+If A: re-read the previous approved.json and present the summary again, then ask about
+next steps.
 If B: proceed to Step 1.
 
 **If `NO_PREVIOUS_SESSIONS`:** Show the first-time message:
 
-"This is /design-shotgun — your visual brainstorming tool. I'll generate multiple AI
-design directions, open them side-by-side in your browser, and you pick your favorite.
-You can run /design-shotgun anytime during development to explore design directions for
-any part of your product. Let's start."
+"This is /design-shotgun — your visual brainstorming tool. I'll generate multiple
+HTML design variants and you pick your favorite right here in chat. Let's start."
 
 ## Step 1: Context Gathering
 
@@ -120,15 +121,14 @@ If DESIGN.md exists, tell the user: "I'll follow your design system in DESIGN.md
 default. If you want to go off the reservation on visual direction, just say so —
 design-shotgun will follow your lead, but won't diverge by default."
 
-**Check for a live site to screenshot** (for the "I don't like THIS" use case):
+**Check for a live site to reference** (for the "I don't like THIS" use case):
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "NO_LOCAL_SITE"
 ```
 
 If a local site is running AND the user referenced a URL or said something like "I don't
-like how this looks," screenshot the current page and use `$D evolve` instead of
-`$D variants` to generate improvement variants from the existing design.
+like how this looks," gather context from the current page to inform the HTML variants.
 
 **AskUserQuestion with pre-filled context:** Pre-fill what you inferred from the codebase,
 DESIGN.md, and office-hours output. Then ask for what's missing. Frame as ONE question
@@ -225,119 +225,67 @@ If D: drop specified concepts, re-present, re-confirm.
 
 ### Step 3c: Parallel Generation
 
-**If evolving from a screenshot** (user said "I don't like THIS"), take ONE screenshot
-first:
+**Write N HTML variants directly** — no subagents, no design binary, no screenshots.
+Each variant is a standalone HTML file. Use `Write` (or `write`) for each file.
+
+For each variant, write a self-contained HTML file to `$_DESIGN_DIR/`:
 
 ```bash
-$B screenshot "$_DESIGN_DIR/current.png"
+# Create the output dir
+mkdir -p "$_DESIGN_DIR"
 ```
 
-**Launch N Agent subagents in a single message** (parallel execution). Use the Agent
-tool with `subagent_type: "general-purpose"` for each variant. Each agent is independent
-and handles its own generation, quality check, verification, and retry.
+Write `$_DESIGN_DIR/variant-A.html`, `$_DESIGN_DIR/variant-B.html`, etc. Each is a
+complete, self-contained HTML page with inline CSS. Use distinct visual directions
+per variant (different font, color palette, layout approach per variant).
 
-**Important: $D path propagation.** The `$D` variable from DESIGN SETUP is a shell
-variable that agents do NOT inherit. Substitute the resolved absolute path (from the
-`DESIGN_READY: /path/to/design` output in Step 0) into each agent prompt.
+**Anti-convergence directive:** Each variant MUST feel like it came from a different
+design team. Same rules as concept generation in Step 3a.
 
-**Agent prompt template** (one per variant, substitute all `{...}` values):
+**Important:** Do NOT embed images in the HTML. Use pure CSS (gradients, border,
+background patterns) to differentiate visual styles. Keep each file under ~100 lines.
 
-```
-Generate a design variant and save it.
+After writing all variants, describe each briefly in chat:
 
-Design binary: {absolute path to $D binary}
-Brief: {the full variant-specific brief for this direction}
-Output: /tmp/variant-{letter}.png
-Final location: {_DESIGN_DIR absolute path}/variant-{letter}.png
+> "I've created {N} variants:
+> - Variant A ({file size}) — [one-line description of direction]
+> - Variant B ({file size}) — [one-line description of direction]
+> ..."
 
-Steps:
-1. Run: {$D path} generate --brief "{brief}" --output /tmp/variant-{letter}.png
-2. If the command fails with a rate limit error (429 or "rate limit"), wait 5 seconds
-   and retry. Up to 3 retries.
-3. If the output file is missing or empty after the command succeeds, retry once.
-4. Copy: cp /tmp/variant-{letter}.png {_DESIGN_DIR}/variant-{letter}.png
-5. Quality check: {$D path} check --image {_DESIGN_DIR}/variant-{letter}.png --brief "{brief}"
-   If quality check fails, retry generation once.
-6. Verify: ls -lh {_DESIGN_DIR}/variant-{letter}.png
-7. Report exactly one of:
-   VARIANT_{letter}_DONE: {file size}
-   VARIANT_{letter}_FAILED: {error description}
-   VARIANT_{letter}_RATE_LIMITED: exhausted retries
-```
-
-For the evolve path, replace step 1 with:
-```
-{$D path} evolve --screenshot {_DESIGN_DIR}/current.png --brief "{brief}" --output /tmp/variant-{letter}.png
-```
-
-**Why /tmp/ then cp?** In observed sessions, `$D generate --output ~/.gstack/...`
-failed with "The operation was aborted" while `--output /tmp/...` succeeded. This is
-a sandbox restriction. Always generate to `/tmp/` first, then `cp`.
+Do NOT read the HTML files into context with Read tool — just describe them.
+If the user wants to see a variant in the browser, offer to open it.
 
 ### Step 3d: Results
 
-After all agents complete:
+Summarize what was generated:
 
-1. Read each generated PNG inline (Read tool) so the user sees all variants at once.
-2. Report status: "All {N} variants generated in ~{actual time}. {successes} succeeded,
-   {failures} failed."
-3. For any failures: report explicitly with the error. Do NOT silently skip.
-4. If zero variants succeeded: fall back to sequential generation (one at a time with
-   `$D generate`, showing each as it lands). Tell the user: "Parallel generation failed
-   (likely rate limiting). Falling back to sequential..."
-5. Proceed to Step 4 (comparison board).
+"All {N} variants saved to {_DESIGN_DIR}/variant-{A..N}.html"
 
-**Dynamic image list for comparison board:** When proceeding to Step 4, construct the
-image list from whatever variant files actually exist, not a hardcoded A/B/C list:
+**If the user wants to preview in the browser:**
 
 ```bash
-setopt +o nomatch 2>/dev/null || true  # zsh compat
-_IMAGES=$(ls "$_DESIGN_DIR"/variant-*.png 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+open "$_DESIGN_DIR/variant-A.html"
 ```
 
-Use `$_IMAGES` in the `$D compare --images` command.
+Proceed to Step 4.
 
-## Step 4: Comparison Board + Feedback Loop
+## Step 4: Chat Feedback Loop
 
 {{DESIGN_SHOTGUN_LOOP}}
 
-## Step 5: Feedback Confirmation
+## Step 5: Save & Next Steps
 
-After receiving feedback (via HTTP POST or AskUserQuestion fallback), output a clear
-summary confirming what was understood:
-
-"Here's what I understood from your feedback:
-
-PREFERRED: Variant [X]
-RATINGS: A: 4/5, B: 3/5, C: 2/5
-YOUR NOTES: [full text of per-variant and overall comments]
-DIRECTION: [regenerate action if any]
-
-Is this right?"
-
-Use AskUserQuestion to confirm before saving.
-
-## Step 6: Save & Next Steps
-
-Write `approved.json` to `$_DESIGN_DIR/` (handled by the loop above).
-
-If invoked from another skill: return the structured feedback for that skill to consume.
-The calling skill reads `approved.json` and the approved variant PNG.
-
-If standalone, offer next steps via AskUserQuestion:
+If standalone, offer next steps:
 
 > "Design direction locked in. What's next?
 > A) Iterate more — refine the approved variant with specific feedback
-> B) Finalize — generate production Pretext-native HTML/CSS with /design-html
-> C) Save to plan — add this as an approved mockup reference in the current plan
-> D) Done — I'll use this later"
+> B) Finalize — generate production HTML/CSS
+> C) Done — I'll use this later"
 
 ## Important Rules
 
-1. **Never save to `.context/`, `docs/designs/`, or `/tmp/`.** All design artifacts go
-   to `~/.gstack/projects/$SLUG/designs/`. This is enforced. See DESIGN_SETUP above.
-2. **Show variants inline before opening the board.** The user should see designs
-   immediately in their terminal. The browser board is for detailed feedback.
+1. **All design artifacts go to `~/.gstack/projects/$SLUG/designs/`.**
+2. **Collect feedback in chat.** No external comparison board, no screenshots, no HTTP server.
 3. **Confirm feedback before saving.** Always summarize what you understood and verify.
 4. **Taste memory is automatic.** Prior approved designs inform new generations by default.
 5. **Two rounds max on context gathering.** Don't over-interrogate. Proceed with assumptions.
