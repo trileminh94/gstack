@@ -1,0 +1,72 @@
+## Step 0.5: Visual Mockups (DEFAULT when DESIGN_READY)
+
+If the plan involves any UI — screens, pages, components, visual changes — AND the
+gstack designer is available (`DESIGN_READY` was printed during setup), **generate
+mockups immediately.** Do not ask permission. This is the default behavior.
+
+Tell the user: "Generating visual mockups with the gstack designer. This is how we
+review design — real visuals, not text descriptions."
+
+The ONLY time you skip mockups is when:
+- `DESIGN_NOT_AVAILABLE` was printed (designer binary not found)
+- The plan has zero UI scope (pure backend/API/infrastructure)
+
+If the user explicitly says "skip mockups" or "text only", respect that. Otherwise, generate.
+
+**PLAN MODE EXCEPTION — ALWAYS RUN:** These commands write design artifacts to
+`~/.gstack/projects/$SLUG/designs/` (user config directory, not project files).
+Mockups are design artifacts that inform the plan, not code changes. The gstack
+designer outputs PNGs and HTML comparison boards for human review during the
+planning phase. Generating mockups during planning is the whole point.
+
+Allowed commands under this exception:
+- `mkdir -p ~/.gstack/projects/$SLUG/designs/...`
+- `$D generate`, `$D variants`, `$D compare`, `$D iterate`, `$D evolve`, `$D check`
+- `open` (fallback for viewing boards when `$B` is not available)
+
+First, set up the output directory. Name it after the screen/feature being designed and today's date:
+
+```bash
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
+_DESIGN_DIR="$HOME/.gstack/projects/$SLUG/designs/<screen-name>-$(date +%Y%m%d)"
+mkdir -p "$_DESIGN_DIR"
+echo "DESIGN_DIR: $_DESIGN_DIR"
+```
+
+Replace `<screen-name>` with a descriptive kebab-case name (e.g., `homepage-variants`, `settings-page`, `onboarding-flow`).
+
+**Generate mockups ONE AT A TIME in this skill.** The inline review flow generates
+fewer variants and benefits from sequential control. Note: /design-shotgun uses
+parallel Agent subagents for variant generation, which works at Tier 2+ (15+ RPM).
+The sequential constraint here is specific to plan-design-review's inline pattern.
+
+For each UI screen/section in scope, construct a design brief from the plan's description (and DESIGN.md if present) and generate variants:
+
+```bash
+$D variants --brief "<description assembled from plan + DESIGN.md constraints>" --count 3 --output-dir "$_DESIGN_DIR/"
+```
+
+After generation, run a cross-model quality check on each variant:
+
+```bash
+$D check --image "$_DESIGN_DIR/variant-A.png" --brief "<the original brief>"
+```
+
+Flag any variants that fail the quality check. Offer to regenerate failures.
+
+**Do NOT show variants inline via Read tool and ask for preferences.** Proceed
+directly to the Comparison Board + Feedback Loop section below. The comparison board
+IS the chooser — it has rating controls, comments, remix/regenerate, and structured
+feedback output. Showing mockups inline is a degraded experience.
+
+{{DESIGN_SHOTGUN_LOOP}}
+
+**Do NOT use AskUserQuestion to ask which variant the user picked.** Read `feedback.json` — it already contains their preferred variant, ratings, comments, and overall feedback. Only use AskUserQuestion to confirm you understood the feedback correctly, never to re-ask what they chose.
+
+Note which direction was approved. This becomes the visual reference for all subsequent review passes.
+
+**Multiple variants/screens:** If the user asked for multiple variants (e.g., "5 versions of the homepage"), generate ALL as separate variant sets with their own comparison boards. Each screen/variant set gets its own subdirectory under `designs/`. Complete all mockup generation and user selection before starting review passes.
+
+**If `DESIGN_NOT_AVAILABLE`:** Tell the user: "The gstack designer isn't set up yet. Run `$D setup` to enable visual mockups. Proceeding with text-only review, but you're missing the best part." Then proceed to review passes with text-based review.
+
+{{DESIGN_OUTSIDE_VOICES}}

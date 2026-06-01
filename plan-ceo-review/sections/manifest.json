@@ -1,0 +1,20 @@
+{
+  "$schema": "https://gstack.dev/schemas/section-manifest.json",
+  "skill": "plan-ceo-review",
+  "version": 1,
+  "note": "PASSIVE registry. The skeleton's prose is the ONLY place that decides WHEN to read a section.",
+  "sections": [
+    {
+      "id": "mode-reference",
+      "file": "mode-reference.md",
+      "title": "Mode comparison table (EXPANSION / SELECTIVE / HOLD / REDUCTION)",
+      "trigger": "consulting the mode comparison table during Step 0F mode selection"
+    },
+    {
+      "id": "review-sections",
+      "file": "review-sections.md",
+      "title": "11 review sections + required outputs + completion summary",
+      "trigger": "running the 11 review sections after mode selection (Step 0F)"
+    }
+  ]
+}

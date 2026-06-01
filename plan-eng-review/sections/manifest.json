@@ -1,0 +1,14 @@
+{
+  "$schema": "https://gstack.dev/schemas/section-manifest.json",
+  "skill": "plan-eng-review",
+  "version": 1,
+  "note": "PASSIVE registry. The skeleton's prose is the ONLY place that decides WHEN to read a section.",
+  "sections": [
+    {
+      "id": "review-sections",
+      "file": "review-sections.md",
+      "title": "4 review sections (Architecture, Code Quality, Tests, Performance) + confidence calibration + outside voice",
+      "trigger": "running review sections 1-4 after scope challenge (Step 0)"
+    }
+  ]
+}

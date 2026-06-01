@@ -1,0 +1,20 @@
+{
+  "$schema": "https://gstack.dev/schemas/section-manifest.json",
+  "skill": "plan-design-review",
+  "version": 1,
+  "note": "PASSIVE registry. The skeleton's prose is the ONLY place that decides WHEN to read a section.",
+  "sections": [
+    {
+      "id": "visual-mockups",
+      "file": "visual-mockups.md",
+      "title": "Visual mockup generation + design outside voices (Step 0.5)",
+      "trigger": "generating visual mockups and running design outside voices (Step 0.5, when DESIGN_READY)"
+    },
+    {
+      "id": "review-sections",
+      "file": "review-sections.md",
+      "title": "7 design review passes + required outputs + completion summary",
+      "trigger": "running the 7 design review passes after scope assessment (Step 0)"
+    }
+  ]
+}
